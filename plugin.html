@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+
+	<meta name="viewport" content="initial-scale=1.0, maximum-scale=1.0, user-scalable=no, width=device-width" />
+	<meta charset="utf-8" />
+	
+	<link href='http://fonts.googleapis.com/css?family=Roboto:400,700,400italic' rel='stylesheet' type='text/css' />
+	
+	<link href="css/bootstrap-3.3.4.min.css" rel="stylesheet" />
+	<link href="css/jquery.mmenu.all.css" rel="stylesheet" />
+	<link href="css/leaflet-0.7.7.css" rel="stylesheet" />
+	<link href="css/leaflet-markercluster.css" rel="stylesheet" />
+	<link href="css/leaflet-markercluster-default.css" rel="stylesheet" />
+	<link href="css/fontello.css" rel="stylesheet" />	
+	<link href="css/style.css" rel="stylesheet" />
+
+</head>
+
+<body>
+
+<div class="map-container">
+
+	<div class="map-canvas" id="map-canvas"></div>
+
+	<div class="map-title" id="map-title"></div>
+
+	<div class="map-outputs" id="map-outputs"></div>
+
+	<div class="map-controls" id="map-controls">
+
+		<button type="button" class="btn btn-default btn-circle" tabindex="-1" data-action="zoom-in"><span class="icon icon-plus"></span></button>
+		<button type="button" class="btn btn-default btn-circle" tabindex="-1" data-action="zoom-out"><span class="icon icon-minus"></span></button>
+		<button type="button" class="btn btn-default btn-circle" tabindex="-1" data-action="zoom-fit"><span class="icon icon-resize-small"></span></button>
+
+	</div>
+
+	<div class="map-navigation hide" id="map-navigation">
+
+		<button type="button" class="btn btn-primary btn-navi" data-action="state-prev">Edellinen</button>
+		<button type="button" class="btn btn-primary btn-navi" data-action="state-next">Seuraava</button>
+
+	</div>
+
+</div>
+
+
+<script src="js/vendor.js"></script>
+<script src="js/main.js"></script>
+
+
+<script id="template-bootstrap-modal" type="text/x-handlebars-template">
+	<div class="modal fade" id="generic-modal" tabindex="-1" role="dialog" aria-hidden="true" aria-labelledby="generic-modal-label">
+		<div class="modal-dialog">
+			<div class="modal-content">
+				<div class="modal-header">
+					<button type="button" class="close" data-dismiss="modal" aria-label="Sulje"><span aria-hidden="true">&times;</span></button>
+					<h4 class="modal-title" id="generic-modal-label">{{title}}</h4>
+				</div>
+				<div class="modal-body">
+					{{{content}}}
+				</div>
+			</div>
+		</div>
+	</div>
+</script>
+
+<script id="template-map-outputs" type="text/x-handlebars-template">
+	<ul>	
+		{{#each remaining}}
+			<li>{{title}}: {{value}} {{units}}</li>
+		{{/each}}
+	</ul>
+</script>
+
+<script id="template-mmenu-option-expand" type="text/x-handlebars-template">
+	<li>
+		<a href="#" data-action="option-expand" data-id="option-{{id}}">{{title}}</a>
+		<ul>{{{menu}}}</ul>
+	</li>
+</script>
+
+<script id="template-mmenu-option-select" type="text/x-handlebars-template">
+	<li>
+		<a href="#" data-action="option-select" data-type="{{id}}" >
+			<div data-action="modal-show" data-type="{{id}}" class="option-select-image">
+				<img src="{{thumbnail}}" width="30" height="30" class="img-circle">
+				<div class="option-select-image-hover"><span class="icon icon-search"></span></div>
+			</div>
+			<div class="option-select-meta">{{cost.value}} {{cost.title}}</div>
+			<div class="option-select-label">{{title}}</div>
+		</a>
+	</li>
+</script>
+
+<script id="template-mmenu-container" type="text/x-handlebars-template">
+	<nav class="mmenu">
+		<div id="mm-panel-main" class="Panel">
+			
+			{{#if content}}
+				<div class="mm-content">
+					{{{content}}}
+				</div>
+			{{/if}}
+			
+			{{#if menu}}
+			<ul>
+				{{{menu}}}
+			</ul>
+			{{/if}}
+			<form class="mm-form">
+				<textarea class="form-control mm-textarea" placeholder="Lisää kommentti" id="mm-comment"></textarea>
+			</form>
+			<div class="mm-alert alert alert-info hide">
+				<p class="text-center">Olet jo käyttänyt kaikki karttamerkkisi. Poista tai muokkaa joitain nykyisistä merkeistä tehdäksesi ehdotukseesi muutoksia.</p>
+			</div>
+			<div class="Hidden hide">
+				<span class="Title">
+					{{#if title}}
+						{{title}}
+					{{/if}}
+					{{#unless title}}
+						Merkitse kartalle
+					{{/unless}}
+				</span>
+			</div>
+		</div>
+		<div id="mm-footer" class="Footer">
+			<a href="#" class="text-danger" data-action="marker-remove">Poista</a>
+			<a href="#" class="text-success" data-action="marker-done">Valmis</a>
+		</div>
+		<a class="mm-close" href="#" data-action="marker-close"></a>
+	</nav>
+</script>
+
+</body>
+</html>

@@ -1,0 +1,74 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+
+<head>
+
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	
+	<script src="data/mapdata.js"></script>
+	<script src="data/samplecomments.js"></script>
+
+	<style>
+	
+		html, body {
+			width: 100%;
+			height: 100%;
+			margin: 0;
+			padding: 0;
+		}
+		
+		#buttons {
+			width: 100%;
+			height: 10%;
+			bottom: 0;
+			left: 0;
+		}
+		
+	</style>
+
+</head>
+
+<body>
+
+	<iframe src="plugin-inline.html" width="100%" height="90%" id="frame"></iframe>
+	
+	<div id="buttons">
+		<a href="#" onclick="javascript:sendMapData('postComments'); return false;">postComments</a> ·
+		<a href="#" onclick="javascript:sendMapData('viewComments'); return false;">viewComments</a> ·
+		<a href="#" onclick="javascript:sendMapData('viewHeatmap'); return false;">viewHeatmap</a> ·
+		<a href="#" onclick="javascript:getUserData(); return false;">Request user data</a> ·
+		<a href="data/mapdata.js" target="_blank">View mapdata</a>
+	</div>
+	
+	<script>
+		
+		function sendMapData(purpose) {
+			document.getElementById('frame').contentWindow.postMessage({
+				message			: 'mapData',
+				instanceId		: 'abc123',
+				data			: JSON.stringify(MAPDATA),
+				comments		: JSON.stringify(COMMENTS),
+				pluginPurpose	: purpose
+			}, '*');
+			return false;
+		}
+		
+		function getUserData() {
+			document.getElementById('frame').contentWindow.postMessage({ message: 'getUserData', instanceId: 'abc123' }, '*');
+			return false;
+		}
+		
+		window.addEventListener('message', function(message) {
+			if (message.data.message === 'userDataChanged') {
+				console.log('userDataChanged');
+			}
+			if (message.data.message === 'userData') {
+				console.log(message.data);
+			}
+		});
+			
+	
+	</script>
+
+</body>
+</html>

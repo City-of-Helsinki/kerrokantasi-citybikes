@@ -4,7 +4,7 @@ L.icon = function (options) {
 
 SymbolIcon = L.Icon.extend({
     options: {
-        iconUrl: 'mapmarkers/marker-citybikes-green.svg',
+        iconUrl: 'mapmarkers/marker-default.svg',
         iconSize:     [26, 32],
         iconAnchor:   [13, 32],
         popupAnchor:  [0, -14]
@@ -19,35 +19,10 @@ L.MarkerClusterGroup.prototype.getLatLng = function() {
 	return $.map(this._featureGroup._layers, function(layer) { return layer._latlng });
 };
 
-// Helsinki WTMS
-// adapted from Helsinki service map (palvelukartta.hel.fi) to use the city's custom map tiles from geoserver.hel.fi
-
-var makeLayer = function() {
-	var bounds, crsName, crsOpts, originNw, projDef;
-	crsName = 'EPSG:3067';
-	projDef = '+proj=utm +zone=35 +ellps=GRS80 +towgs84=0,0,0,0,0,0,0 +units=m +no_defs';
-	bounds = L.bounds(L.point(-548576, 6291456), L.point(1548576, 8388608));
-	originNw = [bounds.min.x, bounds.max.y];
-	crsOpts = {
-		resolutions: [8192, 4096, 2048, 1024, 512, 256, 128, 64, 32, 16, 8, 4, 2, 1, 0.5, 0.25, 0.125],
-		bounds: bounds,
-		transformation: new L.Transformation(1, -originNw[0], -1, originNw[1])
-	};
-	return new L.Proj.CRS(crsName, projDef, crsOpts);
-}
-
-var tm35 = makeLayer(),
-	worldSouthWest = tm35.projection.unproject(tm35.options.bounds.min),
-	worldNorthEast = tm35.projection.unproject(tm35.options.bounds.max);
-	worldLatLngs = [L.latLng(worldNorthEast.lat, worldNorthEast.lng), L.latLng(worldNorthEast.lat, worldSouthWest.lng), L.latLng(worldSouthWest.lat, worldNorthEast.lng), L.latLng(worldSouthWest.lat, worldSouthWest.lng)];
-	worldOrigo = L.latLng((worldNorthEast.lat - worldSouthWest.lat) / 2, (worldNorthEast.lng - worldSouthWest.lng) / 2);
-
-var tilelayer = L.tileLayer('http://geoserver.hel.fi/mapproxy/wmts/osm-sm/etrs_tm35fin/{z}/{x}/{y}.png');
-
 var parseComments = function(commentdata) {
 	var comments = {};
 	$.each(commentdata, function(i, d) {
-		if (d.hasOwnProperty('plugin_data')) {
+		if (d.hasOwnProperty('plugin_data') && d.plugin_data) {
 			var parsed = JSON.parse(d.plugin_data);
 			$.each(parsed, function(j, c) {
 				$.each(c, function(k, comment) {
@@ -59,7 +34,6 @@ var parseComments = function(commentdata) {
 					}
 					comments[comment.type].push(comment);
 				});
-				//comments = comments.concat(p);
 			});
 		}
 	});
@@ -87,10 +61,30 @@ var UUID = function() {
     return uuid;
 }
 
-// Generic WMTS
-/*var tilelayer = L.tileLayer('http://{s}.tile.openstreetmap.se/hydda/full/{z}/{x}/{y}.png', {
-	attribution: 'Tiles courtesy of <a href="http://openstreetmap.se/" target="_blank">OpenStreetMap Sweden</a> &mdash; Map data &copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a>',
-});*/
+// Helsinki WTMS
+// adapted from Helsinki service map (palvelukartta.hel.fi) to use the city's custom map tiles from geoserver.hel.fi
+
+var makeLayer = function() {
+	var bounds, crsName, crsOpts, originNw, projDef;
+	crsName = 'EPSG:3067';
+	projDef = '+proj=utm +zone=35 +ellps=GRS80 +towgs84=0,0,0,0,0,0,0 +units=m +no_defs';
+	bounds = L.bounds(L.point(-548576, 6291456), L.point(1548576, 8388608));
+	originNw = [bounds.min.x, bounds.max.y];
+	crsOpts = {
+		resolutions: [8192, 4096, 2048, 1024, 512, 256, 128, 64, 32, 16, 8, 4, 2, 1, 0.5, 0.25, 0.125],
+		bounds: bounds,
+		transformation: new L.Transformation(1, -originNw[0], -1, originNw[1])
+	};
+	return new L.Proj.CRS(crsName, projDef, crsOpts);
+}
+
+var tm35 = makeLayer(),
+	worldSouthWest = tm35.projection.unproject(tm35.options.bounds.min),
+	worldNorthEast = tm35.projection.unproject(tm35.options.bounds.max);
+	worldLatLngs = [L.latLng(worldNorthEast.lat, worldNorthEast.lng), L.latLng(worldNorthEast.lat, worldSouthWest.lng), L.latLng(worldSouthWest.lat, worldNorthEast.lng), L.latLng(worldSouthWest.lat, worldSouthWest.lng)];
+	worldOrigo = L.latLng((worldNorthEast.lat - worldSouthWest.lat) / 2, (worldNorthEast.lng - worldSouthWest.lng) / 2);
+
+var tilelayer = L.tileLayer('http://geoserver.hel.fi/mapproxy/wmts/osm-sm/etrs_tm35fin/{z}/{x}/{y}.png');
 
 
 // init leaflet base map
@@ -110,7 +104,7 @@ Canvas.init = function(postmessage) {
 	// clear all potentially existing old features
 	me.removeFeatures();
 	
-	// init/reset all data containers
+	// init/reset all primary containers
 	if (postmessage.hasOwnProperty('comments')) {
 		var commentdata = (typeof postmessage.comments === 'string') ? JSON.parse(postmessage.comments) : postmessage.comments;
 		me.commentdata = parseComments(commentdata);
@@ -129,7 +123,7 @@ Canvas.init = function(postmessage) {
 	
 	me.setInstanceId(postmessage.instanceId);
 	me.setPurpose(postmessage.pluginPurpose);
-	me.setLanguage('fi'); // could eventually be read from postmessage
+	me.setLanguage('fi');
 	me.setState(0);
 	
 }
@@ -166,10 +160,20 @@ Canvas.getLanguage = function() {
 }
 
 Canvas.setTitle = function(title) {
-	$('#map-title').html('<h1>' + title + '</h1>');	
+	title = title || '';
+	$('#map-title').html(title);	
 }
 
 Canvas.getTitle = function() {
+	
+}
+
+Canvas.setDescription = function(description) {
+	description = description || '';
+	$('#map-description').html(description);	
+}
+
+Canvas.getDescription = function() {
 	
 }
 
@@ -184,25 +188,28 @@ Canvas.setState = function(state) {
 	var mapdata = me.mapdata;
 	var userdata = me.userdata;
 	
-	var catalog = mapdata.catalog;
-	var states = mapdata.states;
+	var catalog = mapdata.catalog || {};
+	var states = mapdata.states || [];
 	
 	state = Math.max(state, 0);
 	state = Math.min(state, states.length -1);
 	
 	me.state = state;
-	me.removeFeatures();
 	
 	if (!userdata.hasOwnProperty(state))
 		userdata[state] = {}
 	
+	// init blank containers
+	
+	me.boundary = null;
+	me.budget = {};
+	me.catalog = catalog;
+	me.design = [];
+	me.menu = [];
+	
+	me.removeFeatures();
+	
 	if (purpose == 'viewHeatmap') {
-
-		me.boundary = false;
-		me.budget = {};
-		me.catalog = catalog;
-		me.design = [];
-		me.menu = [];
 
 		var bounds = [];
 		
@@ -240,18 +247,16 @@ Canvas.setState = function(state) {
 			bounds = bounds.concat(locations);
 		
 		});
+		
+		if (bounds.length > 0) {
 			
-		me.fitBounds(bounds);
+			me.fitBounds(bounds);
+			
+		}
 		
 	}
 	
 	if (purpose == 'viewComments') {
-		
-		me.boundary = false;
-		me.budget = {};
-		me.catalog = catalog;
-		me.design = [];
-		me.menu = [];
 		
 		var clusters = L.markerClusterGroup({
 			showCoverageOnHover: false
@@ -274,11 +279,16 @@ Canvas.setState = function(state) {
 				clusters.addLayer(entry.marker);
 
 			});
+		
 		});
 
-		me.addFeature(clusters);
-		me.fitBounds(bounds);
-	
+		if (bounds.length > 0) {
+			
+			me.addFeature(clusters);
+			me.fitBounds(bounds);
+			
+		}
+
 	}
 	
 	if (purpose == 'postComments') {
@@ -289,7 +299,6 @@ Canvas.setState = function(state) {
 			var budget = states[state].budget || null;
 			var design = states[state].design || [];
 			var menu = states[state].menu || null;
-			var title = states[state].title || false;
 			
 			// if geojson boundaries passed, draw an inverted polygon on map to mask out other (non-allowed) areas
 			if (boundary && boundary.hasOwnProperty('features')) {
@@ -338,13 +347,15 @@ Canvas.setState = function(state) {
 				});			   
 			}
 			
-			if (title) {
-				me.setTitle(title[language]);
-			}
-			
 		}
 		
 	}
+	
+	var title = (states.hasOwnProperty(state) && states[state].hasOwnProperty('title')) ? states[state].title[language] : '';
+	var description = (states.hasOwnProperty(state) && states[state].hasOwnProperty('description')) ? states[state].description[language] : '';
+	
+	me.setTitle(title);
+	me.setDescription(description);
 	
 	me.update();
 
@@ -463,7 +474,7 @@ Canvas.setActive = function(id) {
 		} else if (purpose == 'viewComments') {
 		
 			template = Handlebars.compile($("#template-mmenu-container").html());
-			title = catalog[entry.type].title[language];
+			title = (catalog.hasOwnProperty(entry.type)) ? catalog[entry.type].title[language] : '';
 			content = entry.comment;
 			html = template({ title: title, content: content });
 			
@@ -542,10 +553,10 @@ Canvas.addEntry = function(properties) {
 	} else {
 
 		var latlng = properties.latlng;
-		var className = (properties.hasOwnProperty('draggable') && properties.draggable) ? 'leaflet-marker-draggable' : 'leaflet-marker-fixed';
 		var draggable = (properties.hasOwnProperty('draggable')) ? properties.draggable : true;
 		var removable = (properties.hasOwnProperty('removable')) ? properties.removable : true;
-		var iconUrl = (properties.hasOwnProperty('type')) ? catalog[properties.type].iconUrl : SymbolIcon.prototype.options.iconUrl;
+		var className = (draggable) ? 'leaflet-marker-draggable' : 'leaflet-marker-fixed';
+		var iconUrl = (properties.hasOwnProperty('type') && catalog.hasOwnProperty(properties.type)) ? catalog[properties.type].iconUrl : SymbolIcon.prototype.options.iconUrl;
 		var marker = properties.marker || L.marker(latlng, { draggable : draggable, icon : new SymbolIcon({iconUrl : iconUrl, className : className }), riseOnHover : draggable});
 		var popup = properties.popup || L.popup({ autoPanPadding : L.point(5,20), className: 'leaflet-popup-mmenu', closeButton : false, maxHeight: 320 });
 		
@@ -560,15 +571,17 @@ Canvas.addEntry = function(properties) {
 		var id = properties.id || marker._leaflet_id || UUID();
 		var entry = properties;
 		
-		/*
+		
 		// dragblock is required to catch and prevent the extra click event fired afted dragend
-		marker.on('dragstart', function(f) {					  
+		//marker.on('dragstart', function(f) {					  
 			// me.dragBlock = true;
-		});
-		*/
+			
+		//});
+		
 		
 		// check whether drag event's latlng hits any boundaries
 		marker.on('drag', function(f) {
+			
 			var ll = f.target.getLatLng();
 			var clashing = leafletPip.pointInLayer(ll, boundary, true);				
 			if (clashing.length > 0) {
@@ -631,6 +644,11 @@ Canvas.addEntry = function(properties) {
 						entry.type = type;
 						$done.removeClass('disabled');
 						success = true;
+					}
+					if (success) {
+						var iconUrl = catalog[type].hasOwnProperty('iconUrl') ? catalog[type].iconUrl : SymbolIcon.prototype.options.iconUrl;
+						var className = (entry.hasOwnProperty('draggable')) ? 'leaflet-marker-draggable' : 'leaflet-marker-fixed';
+						entry.marker.setIcon(new SymbolIcon({iconUrl : iconUrl, className : className }));
 					}
 				}			
 			}
@@ -851,7 +869,7 @@ Canvas.getCosts = function(key) {
 	if (costs.hasOwnProperty(key)) {
 		return costs[key];	
 	} else {
-		return false;
+		return 0;
 	}
 }
 
@@ -859,7 +877,8 @@ Canvas.getRemaining = function(key) {
 	var me = this;
 	var total = me.getBudget(key);
 	var costs = me.getCosts(key);
-	if (total != false && costs != false) {
+	console.log(total, costs);
+	if (total !== false && costs !== false) {
 		return total - costs;	
 	} else {
 		return false;	
@@ -888,7 +907,7 @@ Canvas.update = function() {
 	var remaining = {};
 	
 	$.each(userdata, function(i, d) {
-		if (d.type) {
+		if (d.type && catalog.hasOwnProperty(d.type)) {
 			var cost = catalog[d.type].cost;
 			if (!costs.hasOwnProperty(cost.units)) {
 				costs[cost.units] = 0;
@@ -897,18 +916,20 @@ Canvas.update = function() {
 		}
 	});
 	
-	$.each(budget, function(i, d) {
-		if (!remaining.hasOwnProperty(i)) {	
-			var title = budget[i].title[language];
-			var units = budget[i].units[language];
-			var value = budget[i].value
-			remaining[i] = {
+	$.each(budget, function(key, d) {
+		if (!remaining.hasOwnProperty(key)) {	
+			var title = budget[key].title[language];
+			var units = budget[key].units[language];
+			var value = budget[key].value
+			remaining[key] = {
 				title : title,
 				units : units,
 				value : value
 			}
 		}
-		remaining[i].value -= costs[i];
+		if (costs[key]) {
+			remaining[key].value -= costs[key];
+		}
 	});
 
 	var active = me.getActive() || false;
@@ -942,6 +963,7 @@ Canvas.update = function() {
 				}
 				
 			});
+			
 			
 		}
 		
@@ -987,8 +1009,8 @@ Canvas.update = function() {
 	
 	// hide stuff that is not needed in current view
 	$("#map-outputs").toggleClass('hide', remainingArr.length == 0);
-	$('[data-action="state-prev"], [data-action="state-next"]').toggleClass('hide', states.length == 1);
-	
+	$("#map-navigation").toggleClass('hide', states.length < 2);
+		
 	//me.serialize();
 	
 	window.parent.postMessage({ message: 'userDataChanged', instanceId: instanceId }, '*');

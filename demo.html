@@ -6,7 +6,7 @@
 	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
 	
 	<script src="data/mapdata.js"></script>
-	<script src="data/samplecomments.js"></script>
+	<script src="data/samplebrokencomments.js"></script>
 
 	<style>
 	
@@ -17,11 +17,27 @@
 			padding: 0;
 		}
 		
-		#buttons {
+		#plugin-container {
+			position: fixed;
+			top: 0;
+			bottom: 30px;
+			left: 0;
 			width: 100%;
-			height: 10%;
+		}
+		#plugin {
+			position: relative;
+			width: 100%;
+			height: 100%;
+		}
+		
+		#debug {
+			position: fixed;
 			bottom: 0;
 			left: 0;
+			width: 100%;
+			height: 30px;
+			text-align: center;
+			line-height: 30px;
 		}
 		
 	</style>
@@ -30,20 +46,22 @@
 
 <body>
 
-	<iframe src="plugin-inline.html" width="100%" height="90%" id="frame"></iframe>
+	<div id="plugin-container">
+		<iframe src="plugin-inline.html" id="plugin"></iframe>
+	</div>
 	
-	<div id="buttons">
-		<a href="#" onclick="javascript:sendMapData('postComments'); return false;">postComments</a> ·
-		<a href="#" onclick="javascript:sendMapData('viewComments'); return false;">viewComments</a> ·
-		<a href="#" onclick="javascript:sendMapData('viewHeatmap'); return false;">viewHeatmap</a> ·
-		<a href="#" onclick="javascript:getUserData(); return false;">Request user data</a> ·
+	<div id="debug">
+		For debugging, select <a href="#" onclick="javascript:sendMapData('postComments'); return false;">postComments</a>,
+		<a href="#" onclick="javascript:sendMapData('viewComments'); return false;">viewComments</a>,
+		<a href="#" onclick="javascript:sendMapData('viewHeatmap'); return false;">viewHeatmap</a>,
+		<a href="#" onclick="javascript:getUserData(); return false;">Request user data</a> or 
 		<a href="data/mapdata.js" target="_blank">View mapdata</a>
 	</div>
 	
 	<script>
 		
 		function sendMapData(purpose) {
-			document.getElementById('frame').contentWindow.postMessage({
+			document.getElementById('plugin').contentWindow.postMessage({
 				message			: 'mapData',
 				instanceId		: 'abc123',
 				data			: JSON.stringify(MAPDATA),
@@ -54,7 +72,7 @@
 		}
 		
 		function getUserData() {
-			document.getElementById('frame').contentWindow.postMessage({ message: 'getUserData', instanceId: 'abc123' }, '*');
+			document.getElementById('plugin').contentWindow.postMessage({ message: 'getUserData', instanceId: 'abc123' }, '*');
 			return false;
 		}
 		

@@ -196,8 +196,9 @@ Canvas.setState = function(state) {
 	
 	me.state = state;
 	
-	if (!userdata.hasOwnProperty(state))
+	if (!userdata.hasOwnProperty(state)) {
 		userdata[state] = {}
+	}
 	
 	// init blank containers
 	
@@ -369,7 +370,7 @@ Canvas.getState = function() {
 Canvas.setActive = function(id) {
 	
 	var me = this;
-	
+		
 	var active = me.getActive();
 	var language = me.getLanguage();
 	var purpose = me.getPurpose();
@@ -401,7 +402,7 @@ Canvas.setActive = function(id) {
 	var template, title, content = '', html = '';
 	
 	if (entry) {
-		
+				
 		if (purpose == 'postComments') {
 		
 			if (entry.removable == false) {
@@ -478,7 +479,6 @@ Canvas.setActive = function(id) {
 			content = entry.comment;
 			html = template({ title: title, content: content });
 			
-			
 		}
 				
 		var popup = entry.popup;
@@ -497,7 +497,7 @@ Canvas.setActive = function(id) {
 	}
 	
 	me.update();
-
+	
 }
 	
 Canvas.getActive = function() {
@@ -511,10 +511,10 @@ Canvas.clickCanvas = function(e) {
 	var purpose = me.getPurpose();
 	if (purpose == 'postComments') {
 		var state = me.getState();
-		if (me.dragBlock) {
+		if (me.draggedOutside) {
 			// drag block is set to true when user starts dragging any marker
 			// this is done to prevent the Canvas click event, fired after the marker dragend event, from opening an unwanted popup
-			me.dragBlock = null;
+			me.draggedOutside = null;
 		} else if (me.getActive()) {
 			// there's a popup open somewhere, do not add a new entry before it is closed
 			me.setActive();
@@ -547,7 +547,12 @@ Canvas.addEntry = function(properties) {
 	if (properties.hasOwnProperty('id') && userdata.hasOwnProperty(properties.id)) {
 		
 		var entry = userdata[properties.id];
-	
+		
+		// required to fix inconsistent click behavior
+		// for some reason the markers behave differently when they have been created beforehand and only returned here
+		// see http://stackoverflow.com/questions/36690079/leaflet-marker-dragend-fires-click
+		entry.fixDragEvents = false;		
+		
 		return entry;
 		
 	} else {
@@ -558,47 +563,39 @@ Canvas.addEntry = function(properties) {
 		var className = (draggable) ? 'leaflet-marker-draggable' : 'leaflet-marker-fixed';
 		var iconUrl = (properties.hasOwnProperty('type') && catalog.hasOwnProperty(properties.type)) ? catalog[properties.type].iconUrl : SymbolIcon.prototype.options.iconUrl;
 		var marker = properties.marker || L.marker(latlng, { draggable : draggable, icon : new SymbolIcon({iconUrl : iconUrl, className : className }), riseOnHover : draggable});
-		var popup = properties.popup || L.popup({ autoPanPadding : L.point(5,20), className: 'leaflet-popup-mmenu', closeButton : false, maxHeight: 320 });
+		var popup = properties.popup || L.popup({ autoPanPadding : L.point(5,20), className: 'leaflet-popup-mmenu', closeButton : false, closeOnClick : false, maxHeight: 320 });
 		
-		marker
-			//.addTo(me)
-			.setLatLng(latlng)
-			.bindPopup(popup);
-
 		popup
 			.setLatLng(latlng);
-
-		var id = properties.id || marker._leaflet_id || UUID();
+		
+		marker
+			.setLatLng(latlng)
+			.bindPopup(popup);
+			
+		var id = properties.id || UUID();
 		var entry = properties;
 		
-		
-		// dragblock is required to catch and prevent the extra click event fired afted dragend
-		//marker.on('dragstart', function(f) {					  
-			// me.dragBlock = true;
-			
-		//});
-		
-		
-		// check whether drag event's latlng hits any boundaries
 		marker.on('drag', function(f) {
-			
 			var ll = f.target.getLatLng();
-			var clashing = leafletPip.pointInLayer(ll, boundary, true);				
+			var clashing = leafletPip.pointInLayer(ll, boundary, true);	
 			if (clashing.length > 0) {
-				// marker is above one or more non-allowed polygons, revert to previous position
-				me.dragBlock = true;
+				// marker is above one or more non-allowed polygons
+				// store a flag that prevents the canvas from adding a new marker where the drag ends
 				marker.setLatLng(entry.latlng);
+				me.draggedOutside = true;
 			} else {
-				// all clear, store current position 
+				// all clear, clear flags and store current position 
+				me.draggedOutside = null;
 				entry.latlng = ll;
 			}
-			
 		});
 		
 		// update after drag to store new coordinates
 		marker.on('dragend', function(f) {
 			entry.dragged = true; // store an indication that (a predefined) entry has been repositioned
+			entry.dragend = true; // use this to fix problems with the extra click event after dragend (only occurs with newly created markers)
 			me.update();
+			me.notify();
 		});
 		
 		// disable all default click behaviors
@@ -606,13 +603,13 @@ Canvas.addEntry = function(properties) {
 		
 		// define custom click behaviors
 		marker.on('click', function(f) {
-			if (me.dragBlock) {
-				// dragblock prevents popup from showing after dragend
-				// dragend fires an additional click event in the element that is under the cursor
-				// the first click event is captured here to switch off the dragblock
-				//me.dragBlock = null;
+			if (entry.fixDragEvents) {
+				if (entry.dragend) {
+					entry.dragend = null;	
+				} else {
+					me.setActive(id);
+				}
 			} else {
-				// no dragblocks ahead, open popup upon click
 				me.setActive(id);
 			}
 		});
@@ -620,6 +617,10 @@ Canvas.addEntry = function(properties) {
 		entry.id = id;
 		entry.marker = marker;
 		entry.popup = popup;
+		
+		// required to fix inconsistent click behavior 
+		// http://stackoverflow.com/questions/36690079/leaflet-marker-dragend-fires-click
+		entry.fixDragEvents = true;
 		
 		entry.setType = function(type) {
 			
@@ -649,6 +650,7 @@ Canvas.addEntry = function(properties) {
 						var iconUrl = catalog[type].hasOwnProperty('iconUrl') ? catalog[type].iconUrl : SymbolIcon.prototype.options.iconUrl;
 						var className = (entry.hasOwnProperty('draggable')) ? 'leaflet-marker-draggable' : 'leaflet-marker-fixed';
 						entry.marker.setIcon(new SymbolIcon({iconUrl : iconUrl, className : className }));
+						me.notify();
 					}
 				}			
 			}
@@ -694,15 +696,18 @@ Canvas.removeEntry = function(id) {
 	var entry = userdata[id] || false;
 	if (entry) {
 		var marker = entry.marker;
-		me.removeLayer(marker);
 		delete userdata[id];
+		me.removeLayer(marker);
+		me.notify();
 	}
 }
 	
 Canvas.addFeature = function(feature) {
 	var me = this;
-	me.features.push(feature);
-	me.addLayer(feature);
+	if (me.features.indexOf(feature) == -1) {
+		me.features.push(feature);
+		me.addLayer(feature);
+	}
 }
 
 Canvas.removeFeatures = function() {
@@ -776,7 +781,7 @@ Canvas.initMMenu = function(entry) {
 						stack.push($listitem);
 					}
 				}
-				me.update();
+				//me.update();
 			});
 	}
 	
@@ -835,7 +840,7 @@ Canvas.initMMenu = function(entry) {
 		var t = $(this).val() || entry.getType() || false;
 		$done.toggleClass('disabled', !t);
 		entry.comment = $(this).val();
-		me.update();
+		me.notify();
 	});
 
 }
@@ -877,7 +882,6 @@ Canvas.getRemaining = function(key) {
 	var me = this;
 	var total = me.getBudget(key);
 	var costs = me.getCosts(key);
-	console.log(total, costs);
 	if (total !== false && costs !== false) {
 		return total - costs;	
 	} else {
@@ -1011,9 +1015,20 @@ Canvas.update = function() {
 	$("#map-outputs").toggleClass('hide', remainingArr.length == 0);
 	$("#map-navigation").toggleClass('hide', states.length < 2);
 		
-	//me.serialize();
+}
+
+Canvas.notify = function() {
+
+	var me = this;
 	
-	window.parent.postMessage({ message: 'userDataChanged', instanceId: instanceId }, '*');
+	var instanceId = me.getInstanceId();
+	var purpose = me.getPurpose();
+	
+	if (purpose == 'postComments') {
+		
+		window.parent.postMessage({ message: 'userDataChanged', instanceId: instanceId }, '*');
+		
+	};
 
 }
 	
@@ -1089,7 +1104,6 @@ Canvas.serialize = function(postmessage) {
 		
 		}
 		
-		//console.log(data);
 		window.parent.postMessage({ message: 'userData', data: JSON.stringify(serialized), instanceId: instanceId }, '*');
 	
 	}
@@ -1128,6 +1142,8 @@ Canvas.on('popupopen', function (e) {
 });
 
 Canvas.on('popupclose', function (e) {
+	//var me = this;
+	//me.draggedOutside = null;
 	$('body').removeClass('leaflet-popup-open');
 });
 

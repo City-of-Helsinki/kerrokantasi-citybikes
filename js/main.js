@@ -213,6 +213,45 @@ Canvas.setState = function(state) {
 	if (purpose == 'viewHeatmap') {
 
 		var bounds = [];
+		var locations = []
+		
+		$.each(commentdata, function(type, comments) { 
+			
+			$.map(comments, function(comment) {
+				if (comment.removable == false && comment.dragged != true && comment.comment) {
+				} else {
+					locations.push([comment.lat, comment.lng]);
+				}
+			});
+			
+		});
+			
+			
+		var settings = {
+			blur		: 15,
+			minOpacity	: .5,
+			pane		: 'tilePane',
+			radius		: 10,
+			zIndex		: -1
+		}
+
+		var heatmap = L.heatLayer(locations, settings).addTo(me);
+				
+		me.addFeature(heatmap);
+			
+		me.on('zoomend', function (e) {
+			// normalize zoom to 0 ... 1 based on min and max zoom levels
+			var zoom = (me.getZoom() - 3) / 12;
+			settings.blur = zoom * 30;
+			settings.radius = zoom * 20;
+			settings.minOpacity = zoom * 0.8;	
+			heatmap.setOptions(settings);
+		});
+				
+		var bounds = locations;
+
+		/*
+		var bounds = [];
 		
 		$.each(commentdata, function(type, comments) { 
 			
@@ -223,11 +262,12 @@ Canvas.setState = function(state) {
 				}
 			});
 			
+			
 			var settings = {
 				blur		: 20,
 				minOpacity	: .5,
 				pane		: 'tilePane',
-				radius		: 20,
+				radius		: 10,
 				zIndex		: -1
 			}
 
@@ -247,7 +287,7 @@ Canvas.setState = function(state) {
 			
 			bounds = bounds.concat(locations);
 		
-		});
+		});*/
 		
 		if (bounds.length > 0) {
 			

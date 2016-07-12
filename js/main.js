@@ -84,7 +84,7 @@ var tm35 = makeLayer(),
 	worldLatLngs = [L.latLng(worldNorthEast.lat, worldNorthEast.lng), L.latLng(worldNorthEast.lat, worldSouthWest.lng), L.latLng(worldSouthWest.lat, worldNorthEast.lng), L.latLng(worldSouthWest.lat, worldSouthWest.lng)];
 	worldOrigo = L.latLng((worldNorthEast.lat - worldSouthWest.lat) / 2, (worldNorthEast.lng - worldSouthWest.lng) / 2);
 
-var tilelayer = L.tileLayer('http://geoserver.hel.fi/mapproxy/wmts/osm-sm/etrs_tm35fin/{z}/{x}/{y}.png');
+var tilelayer = L.tileLayer('https://geoserver.hel.fi/mapproxy/wmts/osm-sm/etrs_tm35fin/{z}/{x}/{y}.png');
 
 
 // init leaflet base map

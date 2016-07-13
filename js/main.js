@@ -19,6 +19,15 @@ L.MarkerClusterGroup.prototype.getLatLng = function() {
 	return $.map(this._featureGroup._layers, function(layer) { return layer._latlng });
 };
 
+Math.cbrt = Math.cbrt || function(x) {
+  var y = Math.pow(Math.abs(x), 1/3);
+  return x < 0 ? -y : y;
+};
+
+Math.log10 = Math.log10 || function(x) {
+	return Math.log(x) / Math.LN10;
+};
+
 var parseComments = function(commentdata) {
 	var comments = {};
 	$.each(commentdata, function(i, d) {
@@ -210,9 +219,33 @@ Canvas.setState = function(state) {
 	
 	me.removeFeatures();
 	
+	if (states.hasOwnProperty(state)) {
+	
+		var boundary = states[state].boundary || null;
+		
+		if (boundary && boundary.hasOwnProperty('features')) {
+		
+			var boundary = L.geoJson(boundary, {
+				className	: 'leaflet-click-dragblocker',
+				clickable	: true,
+				color		: '#000',
+				fill		: '#000',
+				fillOpacity	: 0.25,
+				invert		: true,
+				opacity		: 0.25,
+				weight		: 1,
+				worldLatLngs: worldLatLngs
+			});
+			
+			me.fitBounds(boundary.getBounds());
+			me.boundary = boundary;
+	
+		};
+		
+	}
+	
 	if (purpose == 'viewHeatmap') {
 
-		var bounds = [];
 		var locations = []
 		
 		$.each(commentdata, function(type, comments) { 
@@ -225,31 +258,32 @@ Canvas.setState = function(state) {
 			});
 			
 		});
-			
-			
-		var settings = {
-			blur		: 15,
-			minOpacity	: .5,
-			pane		: 'tilePane',
-			radius		: 10,
-			zIndex		: -1
+	
+		var heatmap = L.heatLayer(locations);
+		
+		heatmap.update = function() {
+			var zoom = (me.getZoom() - 3) / 12;
+			var scale = 1 / (Math.max(1, Math.log10(locations.length)));
+			var settings = {
+				blur		: Math.sqrt(1 - scale) * 30,
+				minOpacity	: Math.sqrt(zoom) * Math.sqrt(scale),
+				pane		: 'tilePane',
+				radius		: 20,
+				zIndex		: -1
+			}
+			this.setOptions(settings);
 		}
-
-		var heatmap = L.heatLayer(locations, settings).addTo(me);
+		
+		heatmap.update();
+		heatmap.addTo(me);
 				
 		me.addFeature(heatmap);
 			
 		me.on('zoomend', function (e) {
-			// normalize zoom to 0 ... 1 based on min and max zoom levels
-			var zoom = (me.getZoom() - 3) / 12;
-			settings.blur = zoom * 30;
-			settings.radius = zoom * 20;
-			settings.minOpacity = zoom * 0.8;	
-			heatmap.setOptions(settings);
+			heatmap.update();
 		});
-				
-		var bounds = locations;
-
+		
+		
 		/*
 		var bounds = [];
 		
@@ -289,12 +323,6 @@ Canvas.setState = function(state) {
 		
 		});*/
 		
-		if (bounds.length > 0) {
-			
-			me.fitBounds(bounds);
-			
-		}
-		
 	}
 	
 	if (purpose == 'viewComments') {
@@ -303,13 +331,13 @@ Canvas.setState = function(state) {
 			showCoverageOnHover: false
 		});
 		
-		var bounds = [];
+		var locations = [];
 		
 		$.each(commentdata, function(i, comments) { 
 			
 			$.each(comments, function(j, d) {
 
-				bounds.push([d.lat, d.lng]);
+				locations.push([d.lat, d.lng]);
 			
 				// convert latlng array to leaflet latlng object
 				d.latlng = L.latLng([d.lat, d.lng]); 
@@ -323,10 +351,9 @@ Canvas.setState = function(state) {
 		
 		});
 
-		if (bounds.length > 0) {
+		if (locations.length > 0) {
 			
 			me.addFeature(clusters);
-			me.fitBounds(bounds);
 			
 		}
 
@@ -336,36 +363,20 @@ Canvas.setState = function(state) {
 	
 		if (states.hasOwnProperty(state)) {
 	
-			var boundary = states[state].boundary || null;
 			var budget = states[state].budget || null;
 			var design = states[state].design || [];
 			var menu = states[state].menu || null;
 			
 			// if geojson boundaries passed, draw an inverted polygon on map to mask out other (non-allowed) areas
-			if (boundary && boundary.hasOwnProperty('features')) {
+			if (boundary) {
 		
-				var boundary = L.geoJson(boundary, {
-					className	: 'leaflet-click-dragblocker',
-					clickable	: true,
-					color		: '#000',
-					fill		: '#000',
-					fillOpacity	: 0.25,
-					invert		: true,
-					opacity		: 0.25,
-					weight		: 1,
-					worldLatLngs: worldLatLngs
-				}).addTo(me);
-				
-				boundary.on('click', function(e) {
-					me.setActive();
-				});
+				boundary.addTo(me);
+				boundary.on('click', function(e) { me.setActive(); });
 				
 				me.addFeature(boundary);
-				me.fitBounds(boundary.getBounds());
-		
+				
 			};
 			
-			me.boundary = boundary;
 			me.budget = budget;
 			me.catalog = catalog;
 			me.design = design;
